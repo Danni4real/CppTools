@@ -7,11 +7,12 @@
 #include <string>
 #include <fstream>
 
+#include "enum2str.h"
 #include "ThreadLog.h"
 
-std::string get_field(const std::string &str, int field_index) {
+std::string get_field(const std::string &str, int field_index, const std::string &delimiter) {
     using namespace std;
-    regex del(",");
+    regex del(delimiter);
 
     sregex_token_iterator it(str.begin(), str.end(), del, -1);
     sregex_token_iterator end;
@@ -204,22 +205,64 @@ std::string get_file_content(const std::string &path) {
     return content.substr(0, content.length() - 1); // remove a extra '\n' of cat output
 }
 
+std::string get_line(const std::string& str, size_t line_number) {
+    std::istringstream iss(str);
+    std::string line;
+    size_t i = 0;
+    
+    while (std::getline(iss, line)) {
+        if (++i == line_number) {
+            return line; 
+        }
+    }
+
+    return "";
+}
+
 bool verify_signature(const std::string &file_path,
                       const std::string &signature_path,
                       const std::string &public_key) {
-    std::string public_key_path = "/tmp/public_key.pem";
-    std::ofstream tmp_file(public_key_path);
-    tmp_file << public_key;
-    tmp_file.close();
-
-    std::string cmd = "openssl dgst -sha256 -verify " +
-                      public_key_path + " -signature " +
+    std::string cmd = "echo \"" + public_key +
+                      "\" | openssl dgst -sha256 -verify /dev/stdin -signature " +
                       signature_path + " " + file_path;
 
     std::string result;
     run_cmd(cmd, &result);
 
-    std::remove(public_key_path.c_str());
-
     return contains_sub_str(result, "Verified OK");
+}
+
+bool starts_with(const std::string& str, const std::string& prefix) {
+    return str.rfind(prefix, 0) == 0;
+}
+
+int get_system_memory_size_kb() {
+    LOG_CALL_0();
+
+    std::ifstream meminfo("/proc/meminfo");
+    std::string line;
+
+    while (std::getline(meminfo, line)) {
+        if (line.find("MemTotal:") == 0) {
+            std::istringstream iss(line);
+            std::string key, value, unit;
+            iss >> key >> value >> unit;
+
+            LOG_INFO("system mem size: %s kb", value.c_str());
+
+            try {
+                return std::stoi(value);
+            } catch (...) {
+                break;
+            }
+        }
+    }
+
+    LOG_ERROR("get system mem size failed!!!");
+    return -1;
+}
+
+bool change_file_name(const std::string& old_path, const std::string& new_path) {
+    std::string cmd = "mv " + old_path + " " + new_path;
+    return run_cmd(cmd);
 }
