@@ -7,7 +7,6 @@
 #include <string>
 #include <fstream>
 
-#include "enum2str.h"
 #include "ThreadLog.h"
 
 std::string get_field(const std::string &str, int field_index, const std::string &delimiter) {
