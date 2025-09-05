@@ -7,8 +7,15 @@
 
 #include <mutex>
 #include <string>
+#include <thread>
+#include <chrono>
 #include <functional>
 #include <condition_variable>
+
+#include "ThreadLog.h"
+
+#define LOCK_TILL_EXIT_SCOPE() static std::mutex mtx;std::lock_guard lock(mtx);
+#define RETURN_IF_NOT_FIRST_ENTRANT() LOCK_TILL_EXIT_SCOPE() static bool first_entrant=true;if(first_entrant){first_entrant=false;}else{return;}
 
 inline int to_int(const std::string &str) {
     if (str.empty())
@@ -22,6 +29,14 @@ inline std::string to_string(const std::string &str) {
 
 inline std::string to_string(const char *chars) {
     return chars;
+}
+
+inline void sleep_sec(unsigned int seconds) {
+    std::this_thread::sleep_for(std::chrono::seconds(seconds));
+}
+
+inline void sleep_millisec(unsigned int milliseconds) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
 }
 
 template<typename T>
@@ -45,20 +60,35 @@ class ConditionVariable {
     std::condition_variable cv;
 
 public:
-    void wait() {
+    void wait(uint sec = 20) {
         std::unique_lock lock(mtx);
+        LOG_CALL(sec);
+
         ready = false;
+
+        auto end_time = std::chrono::system_clock::now() + std::chrono::seconds(sec);
         while (!ready) {
-            cv.wait(lock);
+            if (cv.wait_until(lock, end_time) == std::cv_status::timeout) {
+                LOG_ERROR("wait cv time out");
+                break;
+            }
         }
     }
 
-    void wait_after(std::function<void()> func) {
+    void call_then_wait(std::function<void()> func, uint sec = 60) {
         std::unique_lock lock(mtx);
+        LOG_CALL(sec);
+
         ready = false;
+
         func();
+
+        auto end_time = std::chrono::system_clock::now() + std::chrono::seconds(sec);
         while (!ready) {
-            cv.wait(lock);
+            if (cv.wait_until(lock, end_time) == std::cv_status::timeout) {
+                LOG_ERROR("wait cv time out");
+                break;
+            }
         }
     }
 
@@ -69,7 +99,7 @@ public:
     }
 };
 
-std::string get_field(const std::string &str, int field_index);
+std::string get_field(const std::string &str, int field_index, const std::string &delimiter = ",");
 
 bool run_cmd(const std::string &cmd);
 
@@ -109,7 +139,15 @@ bool append_env_var(const std::string& env_var, const std::string& append_value)
 
 std::string get_file_content(const std::string& path);
 
+std::string get_line(const std::string& str, size_t line_number);
+
 bool verify_signature(const std::string &file_path,
                       const std::string &signature_path,
                       const std::string &public_key);
+
+bool starts_with(const std::string& str, const std::string& prefix);
+
+int get_system_memory_size_kb();
+
+bool change_file_name(const std::string& old_path, const std::string& new_path);
 #endif //TOOLS_H
