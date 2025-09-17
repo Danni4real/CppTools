@@ -14,7 +14,13 @@
 
 #include "ThreadLog.h"
 
-#define LOCK_TILL_EXIT_SCOPE() static std::mutex mtx;std::lock_guard lock(mtx);
+#define LOCK_TILL_EXIT_SCOPE() \
+    static std::timed_mutex mtx; \
+    std::unique_lock<std::timed_mutex> lock(mtx, std::defer_lock); \
+    while (!lock.try_lock_for(std::chrono::seconds(1))) {  \
+        LOG_WARN("wait lock timeout!!!"); \
+    }
+
 #define RETURN_IF_NOT_FIRST_ENTRANT() LOCK_TILL_EXIT_SCOPE() static bool first_entrant=true;if(first_entrant){first_entrant=false;}else{return;}
 
 inline int to_int(const std::string &str) {
