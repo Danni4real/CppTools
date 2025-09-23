@@ -6,6 +6,7 @@
 #define TOOLS_H
 
 #include <mutex>
+#include <deque>
 #include <string>
 #include <thread>
 #include <chrono>
@@ -66,6 +67,16 @@ class ConditionVariable {
     std::condition_variable cv;
 
 public:
+    void wait_for_ever() {
+        std::unique_lock lock(mtx);
+        LOG_CALL();
+
+        ready = false;
+
+        while (!ready)
+            cv.wait(lock);
+    }
+
     void wait(uint sec = 20) {
         std::unique_lock lock(mtx);
         LOG_CALL(sec);
@@ -105,6 +116,45 @@ public:
     }
 };
 
+template<typename T>
+class MessageQueue {
+public:
+    explicit MessageQueue(size_t size_limit = 1) : m_size_limit(size_limit) {
+    }
+
+    void block_push(const T &t) {
+        std::unique_lock lk(m_mtx);
+
+        m_push_cv.wait(lk,
+                       [this] {
+                           return m_queue.size() < m_size_limit;
+                       });
+
+        m_queue.push_back(t);
+        m_pop_cv.notify_one();
+    }
+
+    void block_pop(T &t) {
+        std::unique_lock lk(m_mtx);
+
+        m_pop_cv.wait(lk,
+                      [this] {
+                          return !m_queue.empty();
+                      });
+        t = std::move(m_queue.front());
+        m_queue.pop_front();
+        m_push_cv.notify_one();
+    }
+
+private:
+    std::mutex m_mtx;
+    size_t m_size_limit;
+    std::deque<T> m_queue;
+    std::condition_variable m_pop_cv;
+    std::condition_variable m_push_cv;
+};
+
+
 std::string get_field(const std::string &str, int field_index, const std::string &delimiter = ",");
 
 bool run_cmd(const std::string &cmd);
@@ -116,8 +166,8 @@ bool untar(const std::string &tar_file_path,
 
 // untar and remove one or more top level folders
 bool untar_and_rm_top_folders(const std::string &tar_file_path,
-                                    const std::string &untar_directory,
-                                    int rm_top_folders_num);
+                              const std::string &untar_directory,
+                              int rm_top_folders_num);
 
 bool umount(const std::string &partition_or_dir);
 
@@ -141,19 +191,19 @@ bool contains_str(const std::string &file_path, const std::string &str);
 
 bool rm_if_exists_mk_if_not(const std::string &file_path);
 
-bool append_env_var(const std::string& env_var, const std::string& append_value);
+bool append_env_var(const std::string &env_var, const std::string &append_value);
 
-std::string get_file_content(const std::string& path);
+std::string get_file_content(const std::string &path);
 
-std::string get_line(const std::string& str, size_t line_number);
+std::string get_line(const std::string &str, size_t line_number);
 
 bool verify_signature(const std::string &file_path,
                       const std::string &signature_path,
                       const std::string &public_key);
 
-bool starts_with(const std::string& str, const std::string& prefix);
+bool starts_with(const std::string &str, const std::string &prefix);
 
 int get_system_memory_size_kb();
 
-bool change_file_name(const std::string& old_path, const std::string& new_path);
+bool change_file_name(const std::string &old_path, const std::string &new_path);
 #endif //TOOLS_H
