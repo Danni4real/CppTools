@@ -122,7 +122,8 @@ public:
     explicit MessageQueue(size_t size_limit = 1) : m_size_limit(size_limit) {
     }
 
-    void block_push(const T &t) {
+    template<typename U>
+    void block_push(U &&t) {
         std::unique_lock lk(m_mtx);
 
         m_push_cv.wait(lk,
@@ -130,7 +131,7 @@ public:
                            return m_queue.size() < m_size_limit;
                        });
 
-        m_queue.push_back(t);
+        m_queue.push_back(std::forward<U>(t));
         m_pop_cv.notify_one();
     }
 
@@ -141,6 +142,7 @@ public:
                       [this] {
                           return !m_queue.empty();
                       });
+
         t = std::move(m_queue.front());
         m_queue.pop_front();
         m_push_cv.notify_one();
