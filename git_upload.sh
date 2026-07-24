@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# TODO： build project
+
+# TODO： test project
+
 ./gen_version_header.sh
 
 git pull
