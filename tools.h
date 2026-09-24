@@ -13,20 +13,24 @@
 #include <functional>
 #include <condition_variable>
 
-#include "ThreadLog.h"
+#include "ThreadTraceLog.h"
 
-#define LOCK_TILL_EXIT_SCOPE() \
+#define LOCK_GUARD(mtx) std::lock_guard llkk(mtx);
+
+#define STATIC_SCOPE_LOCK \
     static std::timed_mutex mtx; \
     std::unique_lock<std::timed_mutex> lock(mtx, std::defer_lock); \
     while (!lock.try_lock_for(std::chrono::seconds(1))) {  \
-        LOG_WARN("wait lock timeout!!!"); \
+        /*LOG_WARN("wait lock timeout!!!");*/ \
     }
 
-#define RETURN_IF_NOT_FIRST_ENTRANT() LOCK_TILL_EXIT_SCOPE() static bool first_entrant=true;if(first_entrant){first_entrant=false;}else{return;}
+#define RETURN_NON_FIRST_CALLER() STATIC_SCOPE_LOCK; static bool first_entrant=true;if(first_entrant){first_entrant=false;}else{return;}
 
 inline int to_int(const std::string &str) {
-    if (str.empty())
+    if (str.empty()) {
         return 0;
+    }
+
     return std::stoi(str);
 }
 
@@ -61,6 +65,11 @@ std::string combine(const First &first, const Rest &... rest) {
     return to_string(first) + ',' + combine(rest...);
 }
 
+template<typename C, typename E>
+bool contains_element(C container, E element) {
+    return std::find(container.begin(), container.end(), element) != container.end();
+}
+
 class ConditionVariable {
     std::mutex mtx;
     bool ready = false;
@@ -69,7 +78,7 @@ class ConditionVariable {
 public:
     void wait_for_ever() {
         std::unique_lock lock(mtx);
-        LOG_CALL();
+        log_call();
 
         ready = false;
 
@@ -79,22 +88,22 @@ public:
 
     void wait(uint sec = 20) {
         std::unique_lock lock(mtx);
-        LOG_CALL(sec);
+        log_call(sec);
 
         ready = false;
 
         auto end_time = std::chrono::system_clock::now() + std::chrono::seconds(sec);
         while (!ready) {
             if (cv.wait_until(lock, end_time) == std::cv_status::timeout) {
-                LOG_ERROR("wait cv time out");
+                log_error("wait cv time out");
                 break;
             }
         }
     }
 
-    void call_then_wait(std::function<void()> func, uint sec = 60) {
+    void call_then_wait(const std::function<void()>& func, uint sec = 60) {
         std::unique_lock lock(mtx);
-        LOG_CALL(sec);
+        log_call(sec);
 
         ready = false;
 
@@ -103,14 +112,14 @@ public:
         auto end_time = std::chrono::system_clock::now() + std::chrono::seconds(sec);
         while (!ready) {
             if (cv.wait_until(lock, end_time) == std::cv_status::timeout) {
-                LOG_ERROR("wait cv time out");
+                log_error("wait cv time out");
                 break;
             }
         }
     }
 
     void notify() {
-        std::lock_guard<std::mutex> lock(mtx);
+        std::scoped_lock lock(mtx);
         ready = true;
         cv.notify_one();
     }
@@ -185,6 +194,11 @@ bool mkdir(const std::string &dir);
 
 bool mkfile(const std::string &dir);
 
+// create file if not exists
+bool overwrite_file(const std::string &path, const std::string &content);
+
+bool fsync_file(const std::string &path);
+
 bool rm_path(const std::string &path);
 
 bool contains_sub_str(const std::string &str, const std::string &sub_str);
@@ -208,4 +222,7 @@ bool starts_with(const std::string &str, const std::string &prefix);
 int get_system_memory_size_kb();
 
 bool change_file_name(const std::string &old_path, const std::string &new_path);
+
+int64_t get_mono_sec();
+int64_t get_mono_millisec();
 #endif //TOOLS_H
