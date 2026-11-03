@@ -34,7 +34,7 @@ bool run_cmd(const std::string& cmd, std::string* run_result) {
 
     auto* pipe = popen(cmd.c_str(), "r");
     if (pipe == nullptr) {
-        log_error("popen() failed, run cmd %s failed", cmd.c_str());
+        log_error_fmt("popen() failed, run cmd %s failed", cmd.c_str());
         return false;
     }
 
@@ -50,7 +50,7 @@ bool run_cmd(const std::string& cmd, std::string* run_result) {
         if (exit_code == 0) {
             return true;
         }
-        log_error("run cmd failed, exit code: %d", exit_code);
+        log_error("run cmd failed, exit code: ", exit_code);
     } else {
         log_error("run cmd failed");
     }
@@ -254,7 +254,7 @@ std::string get_file_content(const std::string& path) {
     std::string content;
 
     if (!run_cmd("cat " + path, &content)) {
-        log_error("get content of %s failed!", path.c_str());
+        log_error_fmt("get content of %s failed!", path.c_str());
         return "";
     }
     return content.substr(0, content.length() - 1); // remove a extra '\n' of cat output
@@ -305,7 +305,7 @@ int get_system_memory_size_kb() {
             std::string unit;
             iss >> key >> value >> unit;
 
-            log_info("system mem size: %s kb", value.c_str());
+            log_info_fmt("system mem size: %s kb", value.c_str());
 
             try {
                 return std::stoi(value);
@@ -342,4 +342,25 @@ int64_t get_mono_millisec() {
     const int64_t tv_nsec = ts.tv_nsec;
 
     return tv_sec * 1000 + tv_nsec / 1000'000;
+}
+
+std::string ltrim(std::string s, const std::string& chars = " \r\n\t")
+{
+    size_t start = s.find_first_not_of(chars);
+    if (start == std::string::npos)
+        return "";
+    return s.substr(start);
+}
+
+std::string rtrim(std::string s, const std::string& chars = " \r\n\t")
+{
+    size_t end = s.find_last_not_of(chars);
+    if (end == std::string::npos)
+        return "";
+    return s.substr(0, end + 1);
+}
+
+std::string lrtrim(std::string s, const std::string& chars = " \r\n\t")
+{
+    return ltrim(rtrim(s, chars), chars);
 }
