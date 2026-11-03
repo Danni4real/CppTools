@@ -225,4 +225,8 @@ bool change_file_name(const std::string &old_path, const std::string &new_path);
 
 int64_t get_mono_sec();
 int64_t get_mono_millisec();
+
+std::string ltrim(std::string s, const std::string& chars = " \r\n\t");
+std::string rtrim(std::string s, const std::string& chars = " \r\n\t");
+std::string lrtrim(std::string s, const std::string& chars = " \r\n\t");
 #endif //TOOLS_H
