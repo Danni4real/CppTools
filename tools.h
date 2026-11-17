@@ -132,6 +132,19 @@ public:
     }
 
     template<typename U>
+    bool push(U &&t) {
+        std::unique_lock lk(m_mtx);
+
+        if (m_queue.size() < m_size_limit) {
+            m_queue.push_back(std::forward<U>(t));
+            m_pop_cv.notify_one();
+            return true;
+        }
+
+        return false;
+    }
+
+    template<typename U>
     void block_push(U &&t) {
         std::unique_lock lk(m_mtx);
 
