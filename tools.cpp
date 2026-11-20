@@ -248,16 +248,28 @@ bool append_env_var(const std::string& env_var, const std::string& append_value)
     return true;
 }
 
+std::string get_file_content_truncate_last_char(const std::string& path) {
+    log_call(path);
+
+    std::string content;
+
+    if (!run_cmd("cat " + path, &content)) {
+        log_error("get content of %s failed!", path.c_str());
+        return "";
+    }
+    return content.substr(0, content.length() - 1); // remove a extra '\n' of cat output
+}
+
 std::string get_file_content(const std::string& path) {
     log_call(path);
 
     std::string content;
 
     if (!run_cmd("cat " + path, &content)) {
-        log_error_fmt("get content of %s failed!", path.c_str());
+        log_error("get content of %s failed!", path.c_str());
         return "";
     }
-    return content.substr(0, content.length() - 1); // remove a extra '\n' of cat output
+    return content;
 }
 
 std::string get_line(const std::string& str, size_t line_number) {
