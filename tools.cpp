@@ -254,7 +254,7 @@ std::string get_file_content_truncate_last_char(const std::string& path) {
     std::string content;
 
     if (!run_cmd("cat " + path, &content)) {
-        log_error("get content of %s failed!", path.c_str());
+        log_error_fmt("get content of %s failed!", path.c_str());
         return "";
     }
     return content.substr(0, content.length() - 1); // remove a extra '\n' of cat output
@@ -266,7 +266,7 @@ std::string get_file_content(const std::string& path) {
     std::string content;
 
     if (!run_cmd("cat " + path, &content)) {
-        log_error("get content of %s failed!", path.c_str());
+        log_error_fmt("get content of %s failed!", path.c_str());
         return "";
     }
     return content;
