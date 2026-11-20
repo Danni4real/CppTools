@@ -223,6 +223,7 @@ bool rm_if_exists_mk_if_not(const std::string &file_path);
 bool append_env_var(const std::string &env_var, const std::string &append_value);
 
 std::string get_file_content(const std::string &path);
+std::string get_file_content_truncate_last_char(const std::string& path);
 
 std::string get_line(const std::string &str, size_t line_number);
 
